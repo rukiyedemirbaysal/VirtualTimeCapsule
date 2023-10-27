@@ -71,22 +71,33 @@ public class TimeCapsuleJdbcTemplateRepository implements TimeCapsuleRepository 
 
         return timeCapsule;
     }
+    public boolean existsById(int capsuleId) {
+        String sql = "SELECT COUNT(*) FROM TimeCapsule WHERE capsule_id = ?";
+        int count = jdbcTemplate.queryForObject(sql, Integer.class, capsuleId);
+        return count > 0;
+    }
 
     @Override
     @Transactional
     public boolean update(TimeCapsule timeCapsule) {
-        String sql = "UPDATE TimeCapsule SET  title = ?, description = ?, message = ?, media = ?, open_date = ?, is_opened = ? WHERE capsule_id = ?;";
+        System.out.println("Attempting to update TimeCapsule with ID: " + timeCapsule.getCapsuleId());
+        if (!existsById(timeCapsule.getCapsuleId())) {
+            System.out.println("TimeCapsule with ID: " + timeCapsule.getCapsuleId() + " does not exist.");
+            return false;
+        }
+        String sql = "UPDATE TimeCapsule SET title = ?, description = ?, message = ?, open_date = ? WHERE capsule_id = ?";
         int affectedRows = jdbcTemplate.update(sql,
                 timeCapsule.getTitle(),
                 timeCapsule.getDescription(),
                 timeCapsule.getMessage(),
-                timeCapsule.getMedia(),
-                timeCapsule.getOpenDate() == null ? null : new java.sql.Timestamp(timeCapsule.getOpenDate().getTime()),
-                timeCapsule.isOpened(),
+                new java.sql.Timestamp(timeCapsule.getOpenDate().getTime()),
                 timeCapsule.getCapsuleId()
         );
+        System.out.println("Affected rows: " + affectedRows);
+
         return affectedRows > 0;
     }
+
 
     @Override
     @Transactional

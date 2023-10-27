@@ -5,15 +5,20 @@ import org.example.models.AppUser;
 import org.example.models.TimeCapsule;
 import org.example.domain.TimeCapsuleService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Date;
 import java.util.List;
 
@@ -32,8 +37,8 @@ public class TimeCapsuleController {
                                         @RequestParam("description") String description,
                                         @RequestParam("message") String message,
                                         @RequestParam("openDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date openDate,
-                                        @RequestParam("userId") Long userId,
-                                        @RequestParam("media") MultipartFile file) throws IOException {
+                                        @RequestParam("userId") Long userId)
+                                        /*@RequestParam("media") MultipartFile file)*/ throws IOException {
 
         TimeCapsule timeCapsule = new TimeCapsule();
         timeCapsule.setTitle(title);
@@ -42,7 +47,7 @@ public class TimeCapsuleController {
         timeCapsule.setOpenDate(openDate);
         timeCapsule.setUserId(Math.toIntExact(userId));
 
-        if (file != null && !file.isEmpty()) {
+/*        if (file != null && !file.isEmpty()) {
             File dir = new File(UPLOAD_DIR);
             if (!dir.exists()) {
                 boolean success = dir.mkdirs();
@@ -53,33 +58,16 @@ public class TimeCapsuleController {
             File serverFile = new File(dir.getAbsolutePath() + File.separator + file.getOriginalFilename());
             file.transferTo(serverFile);
             timeCapsule.setMedia(serverFile.getPath());
-        }
+        }*/
         return timeCapsuleService.addTimeCapsule(timeCapsule);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateTimeCapsule(@PathVariable int id,
-                                               @RequestParam("title") String title,
-                                               @RequestParam("description") String description,
-                                               @RequestParam("message") String message,
-                                               @RequestParam("openDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date openDate,
-                                               @RequestParam("media") MultipartFile file) throws IOException {
-        TimeCapsule timeCapsule = new TimeCapsule();
-        timeCapsule.setCapsuleId(id);
-        if (title != null) timeCapsule.setTitle(title);
-        timeCapsule.setDescription(description);
-        timeCapsule.setMessage(message);
-        if (openDate != null) timeCapsule.setOpenDate(openDate);
+    @PutMapping("/{capsuleId}")
+    public ResponseEntity<?> updateTimeCapsule(@PathVariable("capsuleId") int capsuleId, @RequestBody TimeCapsule timeCapsule) {
+        timeCapsule.setCapsuleId(capsuleId);
 
-
-        if (file != null && !file.isEmpty()) {
-            File dir = new File(UPLOAD_DIR);
-            if (!dir.exists()) {
-                dir.mkdirs();
-            }
-            File serverFile = new File(dir.getAbsolutePath() + File.separator + file.getOriginalFilename());
-            file.transferTo(serverFile);
-            timeCapsule.setMedia(serverFile.getPath());
+        if (timeCapsule != null && capsuleId != timeCapsule.getCapsuleId()) {
+            return new ResponseEntity<>(null, HttpStatus.CONFLICT);
         }
         Result<TimeCapsule> result = timeCapsuleService.updateTimeCapsule(timeCapsule);
         if (!result.isSuccess()) {
@@ -87,8 +75,6 @@ public class TimeCapsuleController {
         }
         return new ResponseEntity<>(result.getPayload(), HttpStatus.OK);
     }
-
-
 
     @GetMapping("/previous")
     public List<TimeCapsule> getPreviousTimeCapsules(Authentication authentication) {
@@ -108,11 +94,11 @@ public class TimeCapsuleController {
     }
 
 
-    /*@GetMapping("/{id}")
+    @GetMapping("/{id}/retrieve")
     public TimeCapsule getTimeCapsule(@PathVariable int id) {
         return timeCapsuleService.getTimeCapsule(id);
     }
-*/
+
     @PutMapping("/{id}/open")
     public TimeCapsule openTimeCapsule(@PathVariable int id) {
         return timeCapsuleService.openTimeCapsule(id);
@@ -140,4 +126,13 @@ public class TimeCapsuleController {
             return new ResponseEntity<>("Failed to upload the file.", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    @GetMapping("/image/{filename}")
+    public ResponseEntity<Resource> serveImage(@PathVariable String filename) {
+        Path filePath = Paths.get(UPLOAD_DIR + filename);
+        Resource fileResource = new FileSystemResource(filePath);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .body(fileResource);
+    }
+
 }
